@@ -1,8 +1,8 @@
 PATH
   remote: .
   specs:
-    rugged-mysql (0.0.2)
-      rugged (~> 0.21.2)
+    rugged_mariadb (0.0.1)
+      rugged (~> 0.26.0)
 
 GEM
   remote: https://rubygems.org/
@@ -10,7 +10,7 @@ GEM
     rake (10.3.2)
     rake-compiler (0.9.3)
       rake
-    rugged (0.21.2)
+    rugged (0.26.0)
 
 PLATFORMS
   ruby
@@ -19,4 +19,7 @@ DEPENDENCIES
   bundler (~> 1.7)
   rake (~> 10.0)
   rake-compiler (~> 0.9.3)
-  rugged-mysql!
+  rugged_mariadb!
+
+BUNDLED WITH
+   1.16.0

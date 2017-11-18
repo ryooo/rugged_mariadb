@@ -5,7 +5,7 @@
 #include "mariadb_common.h"
 
 
-#define GIT2_STORAGE_ENGINE "XtraDB"
+#define GIT2_STORAGE_ENGINE "InnoDB"
 
 /* Maximum size of a stream, and so, maximum size of a file
  */
@@ -65,7 +65,6 @@
         fprintf(stderr, \
             "MariaDB ODB: WARNING: %s called but not implemented !\n", \
             __FUNCTION__); \
-        assert(0); \
         return GIT_EUSER; \
     }
 
@@ -79,19 +78,7 @@
     } while(0);
 
 
-typedef struct {
-    git_odb_backend parent;
 
-    uint32_t git_repository_id;
-    char *table;
-
-    MYSQL *db;
-    MYSQL_STMT *st_read;
-    MYSQL_STMT *st_read_prefix;
-    MYSQL_STMT *st_write;
-    MYSQL_STMT *st_read_header;
-    MYSQL_STMT *st_read_header_prefix;
-} mariadb_odb_backend_t;
 
 
 typedef struct {
@@ -118,7 +105,7 @@ static int mariadb_odb_backend__read_header(size_t *len_p, git_otype *type_p,
     MYSQL_BIND bind_buffers[2];
     MYSQL_BIND result_buffers[2];
 
-    assert(len_p && type_p && _backend && oid);
+    // assert(len_p && type_p && _backend && oid);
 
     backend = (mariadb_odb_backend_t *)_backend;
 
@@ -230,7 +217,7 @@ static int mariadb_odb_backend__read(void **data_p, size_t *len_p,
     unsigned long data_len;
     int fetch_result;
 
-    assert(len_p && type_p && _backend && oid);
+    // assert(len_p && type_p && _backend && oid);
 
     backend = (mariadb_odb_backend_t *)_backend;
 
@@ -380,7 +367,7 @@ static int mariadb_odb_backend__read_prefix(
     unsigned long data_len;
     int fetch_result;
 
-    assert(out_oid && len_p && type_p && _backend && short_oid);
+    // assert(out_oid && len_p && type_p && _backend && short_oid);
 
     *data_p = NULL;
 
@@ -534,7 +521,7 @@ static int mariadb_odb_backend__exists(git_odb_backend *_backend, const git_oid 
     int found;
     MYSQL_BIND bind_buffers[2];
 
-    assert(_backend && oid);
+    // assert(_backend && oid);
 
     backend = (mariadb_odb_backend_t *)_backend;
     found = 0;
@@ -613,7 +600,7 @@ static int mariadb_odb_backend__exists_prefix(
     MYSQL_BIND result_buffers[1];
     int fetch_result;
 
-    assert(out_oid && _backend && short_oid);
+    // assert(out_oid && _backend && short_oid);
 
     if (len >= GIT_OID_HEXSZ) {
         /* exists() is *much* faster than exists_prefix() */
@@ -718,12 +705,14 @@ static int mariadb_odb_backend__exists_prefix(
 static int mariadb_odb_backend__write(git_odb_backend *_backend,
     const git_oid *oid, const void *data, size_t len, git_otype type)
 {
+printf (">> mariadb_odb_backend__write\n");
+
     mariadb_odb_backend_t *backend;
     MYSQL_BIND bind_buffers[6];
     my_ulonglong affected_rows;
     char oid_hex[GIT_OID_HEXSZ + 1];
 
-    assert(oid && _backend && data);
+    // assert(oid && _backend && data);
 
     backend = (mariadb_odb_backend_t *)_backend;
 
@@ -848,6 +837,7 @@ UNIMPLEMENTED_CALLBACK(mariadb_odb_backend__writepack)
 static int mariadb_odb_backend__writestream_write(git_odb_stream *_stream,
         const char *buffer, size_t len)
 {
+printf (">> mariadb_odb_backend__writestream_write\n");
     mariadb_odb_writestream_t *stream = (void *)_stream;
 
     if (stream->written + len > stream->total) {
@@ -869,7 +859,7 @@ static int mariadb_odb_backend__writestream_finalize_write(
 {
     mariadb_odb_writestream_t *stream = (void *)_stream;
 
-    assert(stream->written == stream->total);
+    // assert(stream->written == stream->total);
 
     return mariadb_odb_backend__write(stream->parent.backend,
         oid, stream->buffer, stream->written, stream->otype);
@@ -888,6 +878,7 @@ static void mariadb_odb_backend__writestream_free(git_odb_stream *_stream)
 static int mariadb_odb_backend__writestream(git_odb_stream **out_stream,
     git_odb_backend *_backend, size_t len, git_otype otype)
 {
+printf (">> mariadb_odb_backend__writestream_write\n");
     mariadb_odb_writestream_t *stream;
     mariadb_odb_backend_t *backend = (void *)_backend;
 
@@ -929,7 +920,7 @@ static void mariadb_odb_backend__free(git_odb_backend *_backend)
 {
     mariadb_odb_backend_t *backend;
 
-    assert(_backend);
+    // assert(_backend);
     backend = (mariadb_odb_backend_t *)_backend;
 
     if (backend->table)
@@ -970,10 +961,9 @@ static int init_db(MYSQL *db, const char *table_name, int odb_partitions)
 
 int git_odb_backend_mariadb(git_odb_backend **backend_out,
         MYSQL *db,
-        const char *mariadb_table,
-        uint32_t git_repository_id,
-        int odb_partitions)
+        const char *mariadb_table, uint32_t repository_id)
 {
+    printf(">> git_odb_backend_mariadb\n");
     mariadb_odb_backend_t *backend;
     int error;
 
@@ -984,20 +974,22 @@ int git_odb_backend_mariadb(git_odb_backend **backend_out,
 
     git_odb_init_backend(&backend->parent, GIT_ODB_BACKEND_VERSION);
 
-    backend->git_repository_id = git_repository_id;
     backend->table = strdup(mariadb_table);
     if (!backend->table) {
+        printf( "Error: %s\n", mysql_error( db ) ) ;
         goto cleanup;
     }
 
     backend->db = db;
 
     /* check for and possibly create the database */
-    error = init_db(db, mariadb_table, odb_partitions);
+    error = init_db(db, mariadb_table, 256);
     if (error < 0) {
+        printf( ">>>>>Error: %s\n", mysql_error( db ) ) ;
         goto cleanup;
     }
-
+    backend->git_repository_id = repository_id;
+     printf("--->%d\n", repository_id);
     backend->parent.read = mariadb_odb_backend__read;
     backend->parent.read_prefix = mariadb_odb_backend__read_prefix;
     backend->parent.read_header = mariadb_odb_backend__read_header;
@@ -1011,7 +1003,7 @@ int git_odb_backend_mariadb(git_odb_backend **backend_out,
     backend->parent.foreach = mariadb_odb_backend__foreach;
     backend->parent.writepack = mariadb_odb_backend__writepack;
 
-
+    printf("<< git_odb_backend_mariadb\n");
     *backend_out = &backend->parent;
     return GIT_OK;
 

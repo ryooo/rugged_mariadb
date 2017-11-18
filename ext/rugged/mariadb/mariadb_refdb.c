@@ -10,7 +10,7 @@
 #include "mariadb_common.h"
 
 
-#define GIT2_STORAGE_ENGINE "XtraDB"
+#define GIT2_STORAGE_ENGINE "InnoDB"
 
 
 #define MAX_REFNAME_LEN    (255)
@@ -94,24 +94,6 @@
     "OPTIMIZE TABLE `%s`" /* %s = table name */
 
 
-typedef struct {
-    git_refdb_backend parent;
-
-    MYSQL *db;
-    uint32_t repository_id;
-    char *table;
-
-    MYSQL_STMT *st_exists;
-    MYSQL_STMT *st_lookup;
-    MYSQL_STMT *st_iterator;
-    MYSQL_STMT *st_write_no_force;
-    MYSQL_STMT *st_write_force;
-    MYSQL_STMT *st_rename;
-    MYSQL_STMT *st_delete;
-    MYSQL_STMT *st_optimize;
-} mariadb_refdb_backend_t;
-
-
 typedef struct mariadb_reference_iterator_node_s {
     struct git_reference *reference;
     int must_free_ref;
@@ -153,8 +135,8 @@ static int mariadb_reference_iterator_next(git_reference **ref,
 {
     mariadb_reference_iterator_t *iterator;
 
-    assert(ref);
-    assert(_iterator);
+    // assert(ref);
+    // assert(_iterator);
 
     iterator = (mariadb_reference_iterator_t *)_iterator;
 
@@ -177,8 +159,8 @@ static int mariadb_reference_iterator_next_name(const char **ref_name,
 {
     mariadb_reference_iterator_t *iterator;
 
-    assert(ref_name);
-    assert(_iterator);
+    //assert(ref_name);
+    //assert(_iterator);
 
     iterator = (mariadb_reference_iterator_t *)_iterator;
 
@@ -200,7 +182,7 @@ static void mariadb_reference_iterator_free(git_reference_iterator *_iterator)
     mariadb_reference_iterator_t *iterator;
     mariadb_reference_iterator_node_t *node, *nnode;
 
-    assert(_iterator);
+    // assert(_iterator);
 
     iterator = (mariadb_reference_iterator_t *)_iterator;
 
@@ -208,7 +190,7 @@ static void mariadb_reference_iterator_free(git_reference_iterator *_iterator)
             node != NULL ;
             node = nnode, nnode = (node != NULL ? node->next : NULL)) {
 
-        assert(node->reference);
+        // assert(node->reference);
         if (node->must_free_ref) {
             git_reference_free(node->reference);
         }
@@ -223,6 +205,7 @@ static void mariadb_reference_iterator_free(git_reference_iterator *_iterator)
 static int mariadb_refdb_exists(int *exists, git_refdb_backend *_backend,
         const char *refname)
 {
+    printf (">> mariadb_refdb_exists\n");
     mariadb_refdb_backend_t *backend;
     MYSQL_BIND bind_buffers[2];
 
@@ -278,7 +261,7 @@ static int mariadb_refdb_exists(int *exists, git_refdb_backend *_backend,
                 mysql_stmt_error(backend->st_exists));
         return GIT_EUSER;
     }
-
+    printf ("<< mariadb_refdb_exists\n");
     return GIT_OK;
 }
 
@@ -287,6 +270,8 @@ static int mariadb_refdb_lookup(git_reference **out,
         git_refdb_backend *_backend,
         const char *refname)
 {
+    printf (">> mariadb_refdb_lookup\n");
+
     mariadb_refdb_backend_t *backend;
     MYSQL_BIND bind_buffers[2];
     MYSQL_BIND result_buffers[3];
@@ -298,7 +283,9 @@ static int mariadb_refdb_lookup(git_reference **out,
     int error;
 
     backend = (mariadb_refdb_backend_t *)_backend;
-
+    printf (">> backend->repository_id: %d\n", backend->repository_id);
+    printf (">> backend->table: %s\n", backend->table);
+    printf (">> refname: %s\n", refname);
     *out = NULL;
 
     memset(bind_buffers, 0, sizeof(bind_buffers));
@@ -386,8 +373,8 @@ static int mariadb_refdb_lookup(git_reference **out,
                 && !result_buffers[1].is_null) {
             *out = git_reference__alloc_symbolic(refname, target_symbolic);
         } else {
-            assert(result_buffers[0].buffer_length > 0
-                    && !result_buffers[0].is_null);
+            //assert(result_buffers[0].buffer_length > 0
+            //        && !result_buffers[0].is_null);
 
             if (result_buffers[2].buffer_length > 0
                     && !result_buffers[2].is_null)
@@ -407,7 +394,7 @@ static int mariadb_refdb_lookup(git_reference **out,
                 mysql_stmt_error(backend->st_lookup));
         return GIT_EUSER;
     }
-
+    printf ("<< mariadb_refdb_lookup\n");
     return error;
 }
 
@@ -427,8 +414,8 @@ static int mariadb_refdb_iterator(git_reference_iterator **_iterator,
     mariadb_reference_iterator_node_t *current_node = NULL;
     mariadb_reference_iterator_node_t *previous_node = NULL;
 
-    assert(_iterator);
-    assert(_backend);
+    // assert(_iterator);
+    // assert(_backend);
 
     *_iterator = NULL;
     backend = (mariadb_refdb_backend_t *)_backend;
@@ -519,8 +506,8 @@ static int mariadb_refdb_iterator(git_reference_iterator **_iterator,
             current_node->reference = \
                 git_reference__alloc_symbolic(refname, target_symbolic);
         } else {
-            assert(result_buffers[0].buffer_length > 0
-                    && !result_buffers[0].is_null);
+            // assert(result_buffers[0].buffer_length > 0
+            //        && !result_buffers[0].is_null);
             if (result_buffers[2].buffer_length > 0
                     && !result_buffers[2].is_null)
                 current_node->reference = \
@@ -590,8 +577,8 @@ static int _bind_ref_values(MYSQL_BIND *bind_buffers, const git_reference *ref)
             break;
         case GIT_REF_INVALID: /* BREAKTHROUGH */
         case GIT_REF_LISTALL:
-            assert(ref_type != GIT_REF_INVALID);
-            assert(ref_type != GIT_REF_LISTALL);
+            // assert(ref_type != GIT_REF_INVALID);
+            // assert(ref_type != GIT_REF_LISTALL);
             fprintf(stderr, __FILE__ ": %s: L%d: "
                 "invalid ref. Cannot insert",
                 __FUNCTION__, __LINE__);
@@ -624,8 +611,8 @@ static int _bind_ref_values(MYSQL_BIND *bind_buffers, const git_reference *ref)
 
         case GIT_REF_LISTALL: /* BREAKTHROUGH */
         case GIT_REF_INVALID:
-            assert(ref_type != GIT_REF_LISTALL);
-            assert(ref_type != GIT_REF_INVALID);
+            // assert(ref_type != GIT_REF_LISTALL);
+            // assert(ref_type != GIT_REF_INVALID);
             fprintf(stderr, __FILE__ ": %s: L%d: "
                 "invalid ref. Cannot insert",
                 __FUNCTION__, __LINE__);
@@ -661,6 +648,7 @@ static int mariadb_refdb_write(git_refdb_backend *_backend,
         const git_signature *who, const char *message,
         const git_oid *old, const char *old_target)
 {
+    printf(">> mariadb_refdb_write");
     mariadb_refdb_backend_t *backend;
     MYSQL_BIND bind_buffers[5];
     my_ulonglong affected_rows;
@@ -672,8 +660,8 @@ static int mariadb_refdb_write(git_refdb_backend *_backend,
     old = old; /* -Wunused-parameter */
     old_target = old_target; /* -Wunused-parameter */
 
-    assert(_backend);
-    assert(ref);
+    // assert(_backend);
+    // assert(ref);
 
     backend = (mariadb_refdb_backend_t *)_backend;
 
@@ -753,7 +741,7 @@ static int mariadb_refdb_write(git_refdb_backend *_backend,
                 mysql_stmt_error(sql_statement));
         return GIT_EUSER;
     }
-
+    printf("<< mariadb_refdb_write");
     return GIT_OK;
 }
 
@@ -765,6 +753,8 @@ static int mariadb_refdb_rename(git_reference **out,
         const char *old_name, const char *new_name, int force,
         const git_signature *who, const char *message)
 {
+
+    printf(">> mariadb_refdb_rename\n");
     mariadb_refdb_backend_t *backend;
     MYSQL_BIND bind_buffers[3];
     my_ulonglong affected_rows;
@@ -772,9 +762,9 @@ static int mariadb_refdb_rename(git_reference **out,
     who = who; /* -Wunused-parameter */
     message = message; /* -Wunused-parameter */
 
-    assert(_backend);
-    assert(old_name);
-    assert(new_name);
+    // assert(_backend);
+    // assert(old_name);
+    // assert(new_name);
 
     *out = NULL;
     backend = (mariadb_refdb_backend_t *)_backend;
@@ -858,7 +848,9 @@ static int mariadb_refdb_rename(git_reference **out,
         return GIT_EUSER;
     }
 
-    return mariadb_refdb_lookup(out, _backend, new_name);
+    int ret = mariadb_refdb_lookup(out, _backend, new_name);
+     printf("<< mariadb_refdb_rename\n");
+    return ret;
 }
 
 
@@ -877,8 +869,8 @@ static int mariadb_refdb_del(git_refdb_backend *_backend, const char *ref_name,
     old_id = old_id; /* -Wunused-parameter */
     old_target = old_target; /* -Wunused-parameter */
 
-    assert(_backend);
-    assert(ref_name);
+    // assert(_backend);
+    // assert(ref_name);
 
     backend = (mariadb_refdb_backend_t *)_backend;
 
@@ -1108,10 +1100,9 @@ static int init_db(MYSQL *db, const char *table_name, int refdb_partitions)
 
 int git_refdb_backend_mariadb(git_refdb_backend **backend_out,
         MYSQL *db,
-        const char *mariadb_table,
-        uint32_t git_repository_id,
-        int refdb_partitions)
+        const char *mariadb_table, uint32_t repository_id)
 {
+    printf(">> git_refdb_backend_mariadb\n");
     mariadb_refdb_backend_t *backend;
     int error;
 
@@ -1123,18 +1114,18 @@ int git_refdb_backend_mariadb(git_refdb_backend **backend_out,
     *backend_out = &backend->parent;
     backend->db = db;
 
-    error = init_db(db, mariadb_table, refdb_partitions);
+    error = init_db(db, mariadb_table, 4);
     if (error < 0) {
+        printf( "Error: %s\n", mysql_error( db ) ) ;
         goto error;
     }
-
-    backend->repository_id = git_repository_id;
 
     backend->table = strdup(mariadb_table);
     if (!backend->table) {
+        printf( "Error: %s\n", mysql_error( db ) ) ;
         goto error;
     }
-
+    backend->repository_id = repository_id;
     backend->parent.exists = mariadb_refdb_exists;
     backend->parent.lookup = mariadb_refdb_lookup;
     backend->parent.iterator = mariadb_refdb_iterator;
@@ -1151,7 +1142,7 @@ int git_refdb_backend_mariadb(git_refdb_backend **backend_out,
     backend->parent.reflog_delete = mariadb_refdb_reflog_delete;
     backend->parent.lock = mariadb_refdb_lock;
     backend->parent.unlock = mariadb_refdb_unlock;
-
+    printf("<< git_refdb_backend_mariadb\n");
     return GIT_OK;
 
 error:

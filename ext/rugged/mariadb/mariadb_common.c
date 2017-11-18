@@ -9,6 +9,8 @@ int init_statement(MYSQL *db,
     const char *mysql_table,
     MYSQL_STMT **statement)
 {
+    printf(">> init_statement\n");
+    printf("SQL:%s\n", sql_statement);
     my_bool truth = 1;
     char sql_query[MAX_QUERY_LEN];
 
@@ -32,6 +34,6 @@ int init_statement(MYSQL *db,
             mysql_error(db));
         return GIT_EUSER;
     }
-
+    printf("<< init_statement\n");
     return GIT_OK;
 }

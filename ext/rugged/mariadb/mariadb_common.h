@@ -33,6 +33,36 @@ typedef struct {
 	MYSQL_STMT *st_read_header;
 } mysql_odb_backend;
 
+typedef struct {
+    git_odb_backend parent;
+
+    uint32_t git_repository_id;
+    char *table;
+
+    MYSQL *db;
+    MYSQL_STMT *st_read;
+    MYSQL_STMT *st_read_prefix;
+    MYSQL_STMT *st_write;
+    MYSQL_STMT *st_read_header;
+    MYSQL_STMT *st_read_header_prefix;
+} mariadb_odb_backend_t;
+
+typedef struct {
+    git_refdb_backend parent;
+
+    MYSQL *db;
+    uint32_t repository_id;
+    char *table;
+
+    MYSQL_STMT *st_exists;
+    MYSQL_STMT *st_lookup;
+    MYSQL_STMT *st_iterator;
+    MYSQL_STMT *st_write_no_force;
+    MYSQL_STMT *st_write_force;
+    MYSQL_STMT *st_rename;
+    MYSQL_STMT *st_delete;
+    MYSQL_STMT *st_optimize;
+} mariadb_refdb_backend_t;
 
 int init_statement(MYSQL *db,
     const char *sql_query_short_name,
@@ -42,14 +72,10 @@ int init_statement(MYSQL *db,
 
 int git_refdb_backend_mariadb(git_refdb_backend **backend_out,
     MYSQL *db,
-    const char *mariadb_table,
-    uint32_t git_repository_id,
-    int refdb_partitions);
+    const char *mariadb_table, uint32_t repository_id);
 
 int git_odb_backend_mariadb(git_odb_backend **backend_out,
     MYSQL *db,
-    const char *mariadb_table,
-    uint32_t git_repository_id,
-    int odb_partitions);
+    const char *mariadb_table, uint32_t repository_id);
 
 #endif

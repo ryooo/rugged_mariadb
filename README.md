@@ -1,4 +1,4 @@
-rugged-mariadb
+rugged_mariadb
 ============
 
 Enables rugged(libgit2 bindings in Ruby, visit by https://github.com/libgit2/rugged) to store git objects and references into MariaDB.
@@ -7,12 +7,11 @@ Enables rugged(libgit2 bindings in Ruby, visit by https://github.com/libgit2/rug
 
 ## Installation
 
+    bundle config --local build.rugged_mariadb "--with-cppflags=-Ipath_to/include/mysql -DLIBGIT2_NO_FEATURES_H"
+
 Add this line to you application's Gemfile:
 
-    gem 'rugged-mariadb'
-Or:
-
-    gem 'rugged-mariadb', github: 'devchild/rugged_mariadb'
+    gem 'rugged_mariadb', github: 'ryooo/rugged_mariadb'
 
 And then execute:
 
@@ -20,20 +19,24 @@ And then execute:
 
 
 ## Usage
+```
+mariadb_backend = Rugged::MariaDB::Backend.new(host:'localhost', port:3306, username:'**', password:'**', database:'**')
+repo = Rugged::Repository.bare('repo-name', backend: mariadb_backend)
 
-Create the backend:
+oid = repo.write("This is a blob.", :blob)
+index = repo.index
+index.add(path: "README.md", oid: oid, mode: 0100644)
+options = {
+  tree: index.write_tree(repo),
+  author: { email: "testuser@github.com", name: 'Test Author', time: Time.now },
+  committer: { email: "testuser@github.com", name: 'Test Author', time: Time.now },
+  message: "Making a commit via Rugged!",
+  update_ref: 'HEAD',
+  parents: repo.head.empty? ? [] : [ repo.head.target ].compact,
+}
 
-    require 'rugged-mariadb'
-    mariadb_backend = Rugged::MySql::Backend.new(host:'localhost', port:3306, username:'git', password:'tig', database:'git')
-
-And pass it to rugged:
-    
-    repo = Rugged::Repository.bare('repo-name', backend:mariadb_backend)
-
-Or
-
-    repo = Rugged::Repository.init_at('repo-name', :bare, backend:mariadb_backend)
-
+Rugged::Commit.create(repo, options)
+```
 
 Each instance of the backend consumes a single MySql connection.
 

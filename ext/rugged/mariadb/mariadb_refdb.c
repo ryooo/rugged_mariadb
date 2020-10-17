@@ -1126,7 +1126,9 @@ int git_refdb_backend_mariadb(git_refdb_backend **backend_out,
         printf( "Error: %s\n", mysql_error( db ) ) ;
         goto error;
     }
+    
     backend->repository_id = repository_id;
+    backend->parent.version = GIT_REFDB_BACKEND_VERSION;
     backend->parent.exists = mariadb_refdb_exists;
     backend->parent.lookup = mariadb_refdb_lookup;
     backend->parent.iterator = mariadb_refdb_iterator;

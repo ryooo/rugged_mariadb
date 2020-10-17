@@ -8,6 +8,7 @@
 // #include "error.h"
 // #include "fnmatch.h"
 #include "mariadb_common.h"
+#include "wildmatch.h"
 
 
 #define GIT2_STORAGE_ENGINE "InnoDB"
@@ -488,7 +489,7 @@ static int mariadb_refdb_iterator(git_reference_iterator **_iterator,
      * returns no error.
      */
     while( (fetch_result = mysql_stmt_fetch(backend->st_iterator)) == 0 ) {
-        if (glob != NULL && p_fnmatch(glob, refname, 0) != 0)
+        if (glob != NULL && wildmatch(glob, refname, 0) != 0)
             continue;
 
         current_node = calloc(1, sizeof(*current_node));
